@@ -75,7 +75,7 @@ Ollama installed with a local model (optional, for AI diagnostics):
 
 ```bash
 
-ollama pull gemma3:4b
+ollama pull gemma2:2b
 
 ```
 
@@ -86,7 +86,7 @@ Clone the repository and install dependencies for both workspaces:
 ```bash
 
 git clone [https://github.com/kshitij9896/SysAmp-v2.91.git](https://github.com/kshitij9896/SysAmp-v2.91.git)
-cd sysamp
+cd SysAmp-v2.91
 
 # Install root orchestrator
 npm install
@@ -111,6 +111,11 @@ npm run dev
 
 Open http://localhost:5173 in your browser, click 🕹️ SIMULATOR MODE in the top bar to switch to ⚡ LIVE BRIDGE: ON, and watch your server come alive!
 
+
+Documentation
+
+[Frontend guide](frontend/README.md): Frontend guide 
+[Backend guide](backend/README.md): Backend guide
 
 📜 License
 MIT License © 2026 Kshitij & Contributors.
