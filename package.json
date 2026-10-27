@@ -1,0 +1,23 @@
+{
+  "name": "sysamp-v2.91",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm --prefix backend start\" \"npm --prefix frontend run dev\"",
+    "server": "node backend/server.js",
+    "client": "npm --prefix frontend run dev",
+    "dev": "concurrently \"npm start --prefix backend\" \"npm run dev --prefix frontend\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "lucide-react": "^1.62.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "concurrently": "^9.2.5",
+    "tailwindcss": "^4.3.3"
+  }
+}
