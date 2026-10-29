@@ -21,6 +21,8 @@ import {
   ListMusic
 } from 'lucide-react';
 
+const API_TOKEN = import.meta.env.VITE_SYSAMP_API_TOKEN;
+
 const INITIAL_CONTAINERS = [
   {
     id: 'c1',
@@ -179,7 +181,9 @@ export default function App() {
     const interval = setInterval(async () => {
       if (liveMode) {
         try {
-          const res = await fetch('http://localhost:4091/api/telemetry');
+          const res = await fetch('http://localhost:4091/api/telemetry', {
+            headers: { Authorization: `Bearer ${API_TOKEN}` }
+          });
           if (!res.ok) throw new Error('Bridge unreachable');
           const data = await res.json();
           setBridgeStatus('CONNECTED');
@@ -288,7 +292,8 @@ export default function App() {
     if (liveMode && bridgeStatus === 'CONNECTED') {
       try {
         await fetch(`http://localhost:4091/api/container/${selectedContainer.id}/${action.toLowerCase()}`, {
-          method: 'POST'
+          method: 'POST',
+          headers: { Authorization: `Bearer ${API_TOKEN}` }
         });
       } catch {}
     }

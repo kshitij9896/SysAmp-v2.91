@@ -1,14 +1,63 @@
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const si = require('systeminformation');
 const Docker = require('dockerode');
 
+function loadEnvFile(file) {
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (match && process.env[match[1]] === undefined) {
+      process.env[match[1]] = match[2].replace(/^["']|["']$/g, '');
+    }
+  }
+}
+loadEnvFile(path.join(__dirname, '.env'));
+
+const API_TOKEN = process.env.SYSAMP_API_TOKEN || '';
+if (API_TOKEN.length < 32) {
+  console.error('SYSAMP_API_TOKEN is missing or too short in backend/.env (minimum 32 characters). Refusing to start.');
+  process.exit(1);
+}
+
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173'
+];
+const ALLOWED_ACTIONS = ['start', 'pause', 'stop'];
+const CONTAINER_ID_RE = /^[a-f0-9]{12,64}$/i;
+const PROCESS_ID_RE = /^pid-\d+$/;
+
 const app = express();
 const PORT = 4091;
+const HOST = '127.0.0.1';
 const docker = new Docker();
 
-app.use(cors({ origin: '*' }));
-app.use(express.json());
+app.use(
+  cors({
+    origin: (origin, callback) => callback(null, ALLOWED_ORIGINS.includes(origin)),
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
+app.use(express.json({ limit: '10kb' }));
+
+function requireToken(req, res, next) {
+  const header = req.get('Authorization') || '';
+  const match = header.match(/^Bearer\s+(.+)$/);
+  const given = Buffer.from(match ? match[1] : '');
+  const expected = Buffer.from(API_TOKEN);
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+app.use('/api', requireToken);
 
 async function getPlaylistTracks() {
   try {
@@ -145,18 +194,30 @@ app.get('/api/telemetry', async (req, res) => {
       containers
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Telemetry error:', err);
+    res.status(500).json({ error: 'Telemetry unavailable' });
   }
 });
 
 app.post('/api/container/:id/:action', async (req, res) => {
   const { id, action } = req.params;
 
+  if (!ALLOWED_ACTIONS.includes(action)) {
+    return res.status(400).json({ success: false, error: 'Invalid action' });
+  }
+
   if (id.startsWith('pid-')) {
+    if (!PROCESS_ID_RE.test(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
+    }
     return res.json({
       success: true,
       note: 'OS process row selected. Start Docker Desktop to control containers.'
     });
+  }
+
+  if (!CONTAINER_ID_RE.test(id)) {
+    return res.status(400).json({ success: false, error: 'Invalid id' });
   }
 
   try {
@@ -181,13 +242,14 @@ app.post('/api/container/:id/:action', async (req, res) => {
 
     res.json({ success: true, id, action });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error(`Container ${action} failed for ${id}:`, err);
+    res.status(500).json({ success: false, error: 'Container action failed' });
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`====================================================`);
-  console.log(`⚡ SysAmp Telemetry Bridge Online: http://localhost:${PORT}`);
-  console.log(`   - Telemetry URL : http://localhost:${PORT}/api/telemetry`);
+  console.log(`⚡ SysAmp Telemetry Bridge Online: http://${HOST}:${PORT}`);
+  console.log(`   - Telemetry URL : http://${HOST}:${PORT}/api/telemetry`);
   console.log(`====================================================`);
 });
